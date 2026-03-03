@@ -1,0 +1,26 @@
+{
+  "name": "aibtc-projects-test",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // KV namespace — test-local (miniflare provides in-memory)
+  "kv_namespaces": [
+    { "binding": "ROADMAP_KV", "id": "test-kv-id" }
+  ],
+
+  // Durable Object bindings
+  "durable_objects": {
+    "bindings": [
+      { "name": "PROJECTS_DO", "class_name": "ProjectsDurableObject" }
+    ]
+  },
+
+  // DO migrations
+  "migrations": [
+    { "tag": "v1", "new_classes": ["ProjectsDurableObject"] }
+  ]
+
+  // NOTE: No "services" binding — WORKER_LOGS is not available in test env.
+  // No "assets" — not needed for tests.
+}

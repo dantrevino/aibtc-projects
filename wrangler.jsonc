@@ -18,7 +18,7 @@
 
   // DO migrations
   "migrations": [
-    { "tag": "v1", "new_classes": ["ProjectsDurableObject"] }
+    { "tag": "v1", "new_sqlite_classes": ["ProjectsDurableObject"] }
   ],
 
   // Service binding to worker-logs
@@ -34,8 +34,14 @@
     "staging": {
       "name": "aibtc-projects-staging",
       "kv_namespaces": [
-        { "binding": "ROADMAP_KV", "id": "STAGING_KV_ID_PLACEHOLDER" }
+        { "binding": "ROADMAP_KV", "id": "622f57251cce4205a7f5aec546482a66" }
       ],
+      "durable_objects": {
+        "bindings": [
+          { "name": "PROJECTS_DO", "class_name": "ProjectsDurableObject" }
+        ]
+      },
+      "services": [],
       "vars": {
         "ENVIRONMENT": "staging"
       }

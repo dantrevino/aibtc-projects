@@ -2,7 +2,7 @@
 export interface Env {
   ROADMAP_KV: KVNamespace;
   PROJECTS_DO: DurableObjectNamespace;
-  WORKER_LOGS: Fetcher;
+  WORKER_LOGS?: Fetcher;
   GITHUB_TOKEN?: string;
   REFRESH_KEY?: string;
   ENVIRONMENT?: string;
