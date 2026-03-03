@@ -1,0 +1,50 @@
+{
+  "name": "aibtc-projects",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // KV namespace — shared project data store
+  "kv_namespaces": [
+    { "binding": "ROADMAP_KV", "id": "f67c1108673448978cc2514973191bdf" }
+  ],
+
+  // Durable Object bindings
+  "durable_objects": {
+    "bindings": [
+      { "name": "PROJECTS_DO", "class_name": "ProjectsDurableObject" }
+    ]
+  },
+
+  // DO migrations
+  "migrations": [
+    { "tag": "v1", "new_classes": ["ProjectsDurableObject"] }
+  ],
+
+  // Service binding to worker-logs
+  "services": [
+    { "binding": "WORKER_LOGS", "service": "aibtc-worker-logs" }
+  ],
+
+  // Static assets
+  "assets": { "directory": "./public" },
+
+  // Environment overrides
+  "env": {
+    "staging": {
+      "name": "aibtc-projects-staging",
+      "kv_namespaces": [
+        { "binding": "ROADMAP_KV", "id": "STAGING_KV_ID_PLACEHOLDER" }
+      ],
+      "vars": {
+        "ENVIRONMENT": "staging"
+      }
+    },
+    "production": {
+      "name": "aibtc-projects",
+      "vars": {
+        "ENVIRONMENT": "production"
+      }
+    }
+  }
+}
