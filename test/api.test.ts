@@ -90,8 +90,8 @@ async function createProject(
 // =========================================================================
 
 describe("health check", () => {
-  it("GET / returns name and version", async () => {
-    const res = await SELF.fetch("https://test/");
+  it("GET /health returns name and version", async () => {
+    const res = await SELF.fetch("https://test/health");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { name: string; version: string };
     expect(body.name).toBe("aibtc-projects");

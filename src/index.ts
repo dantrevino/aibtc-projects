@@ -18,8 +18,8 @@ app.use("*", cors());
 // Does not block unauthenticated requests; routes use requireAuth for that.
 app.use("/api/*", authMiddleware);
 
-// Health check
-app.get("/", (c) => c.json({ name: "aibtc-projects", version: "2.0.0" }));
+// Health check (/ is served as static index.html by Cloudflare Workers Assets)
+app.get("/health", (c) => c.json({ name: "aibtc-projects", version: "2.0.0" }));
 
 // API routes
 app.route("/api/items", items);
