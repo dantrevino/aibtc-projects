@@ -120,7 +120,7 @@ export interface RoadmapData {
   updatedAt?: string;
 }
 
-/** Activity event stored in KV */
+/** Activity event stored in KV and DO */
 export interface ActivityEvent {
   id: string;
   type: string;
@@ -130,3 +130,101 @@ export interface ActivityEvent {
   itemTitle: string | null;
   data: Record<string, unknown>;
 }
+
+// ---------------------------------------------------------------------------
+// Durable Object storage types
+// ---------------------------------------------------------------------------
+
+/** Alarm task types for the DO alarm chain */
+export type AlarmTask =
+  | "github-refresh"
+  | "mention-scan"
+  | "contributor-scan"
+  | "pr-scan"
+  | "website-discovery";
+
+/** Alarm chain schedule — maps task to interval in minutes */
+export const ALARM_SCHEDULE: Record<AlarmTask, number> = {
+  "github-refresh": 15,
+  "mention-scan": 10,
+  "contributor-scan": 15,
+  "pr-scan": 15,
+  "website-discovery": 30,
+} as const;
+
+/** Ordered list of alarm tasks for round-robin chain */
+export const ALARM_CHAIN: AlarmTask[] = [
+  "github-refresh",
+  "mention-scan",
+  "contributor-scan",
+  "pr-scan",
+  "website-discovery",
+];
+
+/** Metadata for tracking alarm state */
+export interface AlarmMeta {
+  lastTask: AlarmTask | null;
+  lastRunAt: string | null;
+  taskHistory: Array<{ task: AlarmTask; ranAt: string; durationMs: number }>;
+}
+
+/** Mention scan state stored in DO */
+export interface MentionScanState {
+  lastScanAt: string | null;
+  processedIds: string[];
+}
+
+/** GitHub scan state per repo */
+export interface GitHubScanRepo {
+  lastFetchAt: string | null;
+  failureCount: number;
+  lastPrScanAt: string | null;
+  lastContributorScanAt: string | null;
+}
+
+/** GitHub scan state stored in DO */
+export interface GitHubScanState {
+  version: number;
+  repos: Record<string, GitHubScanRepo>;
+}
+
+/** GitHub username → AIBTC agent address mapping */
+export interface GitHubMapState {
+  mapping: Record<string, string>;
+}
+
+/** Message archive stored in DO */
+export interface MessageArchive {
+  messages: ActivityEvent[];
+}
+
+/** Result envelope for DO RPC responses */
+export interface DOResult<T> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
+
+/** Storage key prefixes used by the DO */
+export const STORAGE_KEYS = {
+  /** Individual project: project:{id} */
+  projectPrefix: "project:",
+  /** Ordered list of project IDs */
+  projectOrder: "meta:projectOrder",
+  /** Schema version */
+  schemaVersion: "meta:schemaVersion",
+  /** Whether KV migration has run */
+  migrated: "meta:migrated",
+  /** Alarm chain metadata */
+  alarmMeta: "meta:alarm",
+  /** Activity events: event:{timestamp}:{id} */
+  eventPrefix: "event:",
+  /** Mention scan state */
+  mentionScan: "scan:mentions",
+  /** GitHub scan state */
+  githubScan: "scan:github",
+  /** GitHub username→address mapping */
+  githubMap: "scan:github-map",
+  /** Message archive */
+  messageArchive: "scan:messages",
+} as const;
