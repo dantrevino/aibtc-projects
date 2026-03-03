@@ -5,16 +5,18 @@ import { ensureMigrated } from "../lib/do-client";
 
 export const refresh = new Hono<{ Bindings: Env }>();
 
-// GET /api/refresh — manage background task alarms (key-gated)
+// POST /api/refresh — trigger background task alarms (key-gated)
 //
 // v2 replaces the GitHub Actions cron with DO alarm chains.
+// Secured by REFRESH_KEY — called by alarm, not cron.
 // This endpoint:
 //   - Ensures KV→DO migration has run
 //   - Starts the alarm chain if not already running
 //   - Returns alarm status
-refresh.get("/", async (c) => {
+refresh.post("/", async (c) => {
+  const body = await c.req.json<{ key?: string }>().catch((): { key?: string } => ({}));
   const url = new URL(c.req.url);
-  const secret = url.searchParams.get("key");
+  const secret = body.key ?? url.searchParams.get("key");
 
   if (c.env.REFRESH_KEY && secret !== c.env.REFRESH_KEY) {
     return c.json({ error: "Unauthorized" }, 401);
