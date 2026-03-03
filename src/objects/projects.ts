@@ -19,6 +19,15 @@ import {
   STORAGE_KEYS,
 } from "../lib/types";
 import { KV_KEY, MAX_EVENTS, SEED_GITHUB_MAPPINGS } from "../lib/constants";
+import {
+  githubRefresh,
+  mentionScan,
+  contributorScan,
+  prScan,
+  websiteDiscovery,
+  backfillMentionTask,
+} from "../tasks/alarm-tasks";
+import type { TaskContext } from "../tasks/alarm-tasks";
 
 const SCHEMA_VERSION = 1;
 const MAX_EVENTS_IN_DO = MAX_EVENTS;
@@ -635,90 +644,34 @@ export class ProjectsDurableObject extends DurableObject<Env> {
    * and project data through DO storage. The DO's single-threaded model
    * guarantees no concurrent execution.
    *
-   * Task implementations are stubs that log intent — the actual background
-   * task logic (GitHub fetching, mention scanning, etc.) will be ported from
-   * v1's _tasks.js in subsequent PRs. The alarm chain itself is fully
-   * functional: it cycles through tasks, respects intervals, and persists state.
+   * Task implementations are in src/tasks/alarm-tasks.ts, ported from
+   * v1's functions/api/_tasks.js with full feature parity.
    */
   private async runAlarmTask(task: AlarmTask): Promise<void> {
+    const ctx: TaskContext = {
+      storage: this.ctx.storage,
+      env: this.env,
+    };
+
     switch (task) {
-      case "github-refresh": {
-        console.log("[alarm:github-refresh] Checking for stale GitHub data");
-        const order =
-          (await this.ctx.storage.get<string[]>(STORAGE_KEYS.projectOrder)) ??
-          [];
-        const now = Date.now();
-        const staleMs = 15 * 60 * 1000;
-        let refreshed = 0;
-
-        for (const id of order) {
-          const item = await this.ctx.storage.get<ProjectItem>(
-            STORAGE_KEYS.projectPrefix + id
-          );
-          if (!item?.githubData?.fetchedAt) continue;
-          const age = now - new Date(item.githubData.fetchedAt).getTime();
-          if (age > staleMs) refreshed++;
-        }
-        console.log(
-          `[alarm:github-refresh] ${refreshed}/${order.length} items have stale GitHub data`
-        );
+      case "github-refresh":
+        await githubRefresh(ctx);
         break;
-      }
-
-      case "mention-scan": {
-        console.log("[alarm:mention-scan] Checking for new mentions");
-        const state = await this.ctx.storage.get<MentionScanState>(
-          STORAGE_KEYS.mentionScan
-        );
-        console.log(
-          `[alarm:mention-scan] Last scan: ${state?.lastScanAt ?? "never"}, processed: ${state?.processedIds?.length ?? 0}`
-        );
+      case "mention-scan":
+        await mentionScan(ctx);
         break;
-      }
-
-      case "contributor-scan": {
-        console.log("[alarm:contributor-scan] Scanning GitHub contributors");
-        const scanState = await this.ctx.storage.get<GitHubScanState>(
-          STORAGE_KEYS.githubScan
-        );
-        const repoCount = scanState
-          ? Object.keys(scanState.repos).length
-          : 0;
-        console.log(
-          `[alarm:contributor-scan] Tracking ${repoCount} repos`
-        );
+      case "contributor-scan":
+        await contributorScan(ctx);
         break;
-      }
-
-      case "pr-scan": {
-        console.log("[alarm:pr-scan] Scanning for merged PRs");
-        const scanState = await this.ctx.storage.get<GitHubScanState>(
-          STORAGE_KEYS.githubScan
-        );
-        const repoCount = scanState
-          ? Object.keys(scanState.repos).length
-          : 0;
-        console.log(`[alarm:pr-scan] Tracking ${repoCount} repos`);
+      case "pr-scan":
+        await prScan(ctx);
         break;
-      }
-
-      case "website-discovery": {
-        console.log("[alarm:website-discovery] Discovering project websites");
-        const order =
-          (await this.ctx.storage.get<string[]>(STORAGE_KEYS.projectOrder)) ??
-          [];
-        let withoutSite = 0;
-        for (const id of order) {
-          const item = await this.ctx.storage.get<ProjectItem>(
-            STORAGE_KEYS.projectPrefix + id
-          );
-          if (item && !item.website) withoutSite++;
-        }
-        console.log(
-          `[alarm:website-discovery] ${withoutSite}/${order.length} items missing websites`
-        );
+      case "website-discovery":
+        await websiteDiscovery(ctx);
         break;
-      }
+      case "backfill-mentions":
+        await backfillMentionTask(ctx);
+        break;
     }
   }
 }

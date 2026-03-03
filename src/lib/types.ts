@@ -141,7 +141,8 @@ export type AlarmTask =
   | "mention-scan"
   | "contributor-scan"
   | "pr-scan"
-  | "website-discovery";
+  | "website-discovery"
+  | "backfill-mentions";
 
 /** Alarm chain schedule — maps task to interval in minutes */
 export const ALARM_SCHEDULE: Record<AlarmTask, number> = {
@@ -150,6 +151,7 @@ export const ALARM_SCHEDULE: Record<AlarmTask, number> = {
   "contributor-scan": 15,
   "pr-scan": 15,
   "website-discovery": 30,
+  "backfill-mentions": 60,
 } as const;
 
 /** Ordered list of alarm tasks for round-robin chain */
@@ -159,6 +161,7 @@ export const ALARM_CHAIN: AlarmTask[] = [
   "contributor-scan",
   "pr-scan",
   "website-discovery",
+  "backfill-mentions",
 ];
 
 /** Metadata for tracking alarm state */
@@ -176,16 +179,26 @@ export interface MentionScanState {
 
 /** GitHub scan state per repo */
 export interface GitHubScanRepo {
-  lastFetchAt: string | null;
-  failureCount: number;
-  lastPrScanAt: string | null;
+  /** Last contributor scan timestamp */
   lastContributorScanAt: string | null;
+  /** Consecutive contributor scan failures */
+  contributorFails: number;
+  /** Last PR/event scan timestamp */
+  lastEventScanAt: string | null;
+  /** Consecutive event scan failures */
+  eventFails: number;
+  /** Last website discovery scan timestamp */
+  lastWebsiteScanAt: string | null;
+  /** Consecutive website scan failures */
+  websiteFails: number;
 }
 
 /** GitHub scan state stored in DO */
 export interface GitHubScanState {
   version: number;
   repos: Record<string, GitHubScanRepo>;
+  /** Bumped when website filter rules change to force re-scan */
+  websiteFilterVersion?: number;
 }
 
 /** GitHub username → AIBTC agent address mapping */
