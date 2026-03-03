@@ -1,56 +1,106 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "aibtc-projects",
   "main": "src/index.ts",
-  "compatibility_date": "2024-12-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat_v2"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": { "enabled": false },
 
-  // KV namespace — shared project data store
+  /**
+   * Top-level bindings are for local development only (wrangler dev).
+   * These are NOT inherited by environments — each env must define its own.
+   */
+
+  // KV namespace — keep ROADMAP_KV for migration compatibility (uses staging KV for local dev)
   "kv_namespaces": [
-    { "binding": "ROADMAP_KV", "id": "f67c1108673448978cc2514973191bdf" }
+    { "binding": "ROADMAP_KV", "id": "622f57251cce4205a7f5aec546482a66" }
   ],
 
-  // Durable Object bindings
+  // Durable Object binding — primary storage engine
   "durable_objects": {
     "bindings": [
       { "name": "PROJECTS_DO", "class_name": "ProjectsDurableObject" }
     ]
   },
 
-  // DO migrations
+  // DO migrations — use new_sqlite_classes for SQLite-backed DOs
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["ProjectsDurableObject"] }
   ],
 
-  // Service binding to worker-logs
+  // Service binding to worker-logs via RPC (uses staging endpoint for local dev)
   "services": [
-    { "binding": "WORKER_LOGS", "service": "aibtc-worker-logs" }
+    { "binding": "WORKER_LOGS", "service": "worker-logs-staging", "entrypoint": "LogsRPC" }
   ],
 
-  // Static assets
+  // Static frontend assets
   "assets": { "directory": "./public" },
 
-  // Environment overrides
+  /**
+   * Environments
+   * Note: durable_objects, kv_namespaces, services, migrations are NOT inherited.
+   * Each environment must explicitly define all bindings it needs.
+   *
+   * Secrets (set via `wrangler secret put --env <env>`):
+   * - GITHUB_TOKEN: GitHub API token for repo/PR/contributor scanning
+   * - REFRESH_KEY:  Auth key for manual /api/refresh trigger (optional — remove if not kept)
+   */
   "env": {
     "staging": {
+      // Deploys to: aibtc-projects-staging.<account-subdomain>.workers.dev
+      // Routes to aibtc.dev custom domain added here when ready to migrate
       "name": "aibtc-projects-staging",
+      "workers_dev": true,
+      "observability": { "enabled": false },
+      "vars": {
+        "ENVIRONMENT": "staging"
+      },
+      // KV namespace — staging namespace (migration compatibility)
       "kv_namespaces": [
         { "binding": "ROADMAP_KV", "id": "622f57251cce4205a7f5aec546482a66" }
       ],
+      // Bindings must be duplicated per environment
       "durable_objects": {
         "bindings": [
           { "name": "PROJECTS_DO", "class_name": "ProjectsDurableObject" }
         ]
       },
-      "services": [],
-      "vars": {
-        "ENVIRONMENT": "staging"
-      }
+      "migrations": [
+        { "tag": "v1", "new_sqlite_classes": ["ProjectsDurableObject"] }
+      ],
+      // RPC service binding to staging worker-logs
+      "services": [
+        { "binding": "WORKER_LOGS", "service": "worker-logs-staging", "entrypoint": "LogsRPC" }
+      ]
     },
     "production": {
+      // Deploys to: aibtc-projects.<account-subdomain>.workers.dev
+      // Routes to aibtc.com custom domain added here when ready to migrate
       "name": "aibtc-projects",
+      "workers_dev": true,
+      "observability": { "enabled": false },
       "vars": {
         "ENVIRONMENT": "production"
-      }
+      },
+      // KV namespace — production namespace (migration compatibility)
+      "kv_namespaces": [
+        { "binding": "ROADMAP_KV", "id": "f67c1108673448978cc2514973191bdf" }
+      ],
+      // Bindings must be duplicated per environment
+      "durable_objects": {
+        "bindings": [
+          { "name": "PROJECTS_DO", "class_name": "ProjectsDurableObject" }
+        ]
+      },
+      "migrations": [
+        { "tag": "v1", "new_sqlite_classes": ["ProjectsDurableObject"] }
+      ],
+      // RPC service binding to production worker-logs
+      "services": [
+        { "binding": "WORKER_LOGS", "service": "worker-logs-production", "entrypoint": "LogsRPC" }
+      ]
     }
   }
 }
