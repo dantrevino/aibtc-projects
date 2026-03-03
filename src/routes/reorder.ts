@@ -1,22 +1,13 @@
 import { Hono } from "hono";
-import type { Env } from "../lib/types";
-import { getAgent } from "../lib/auth";
+import type { Env, AuthVariables } from "../lib/types";
+import { requireAuth } from "../lib/auth";
 import { reorderProjects, recordEvent } from "../lib/do-client";
 
-export const reorder = new Hono<{ Bindings: Env }>();
+export const reorder = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // POST /api/reorder — reorder items (auth required)
-reorder.post("/", async (c) => {
-  const agent = await getAgent(
-    c.req.header("Authorization") ?? null,
-    c.env.ROADMAP_KV
-  );
-  if (!agent) {
-    return c.json(
-      { error: "Not authenticated. Use header: Authorization: AIBTC {btcAddress}" },
-      401
-    );
-  }
+reorder.post("/", requireAuth, async (c) => {
+  const agent = c.get("agent")!;
 
   const body = await c.req.json<{ order?: string[] }>();
   if (!Array.isArray(body.order)) {

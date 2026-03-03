@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type {
   Env,
+  AuthVariables,
   ProjectItem,
   AgentRef,
   ClaimRef,
@@ -9,7 +10,7 @@ import type {
   Goal,
   Deliverable,
 } from "../lib/types";
-import { getAgent } from "../lib/auth";
+import { requireAuth } from "../lib/auth";
 import { recordEvent, startAlarms } from "../lib/do-client";
 import {
   getData,
@@ -21,7 +22,7 @@ import {
 } from "../tasks/data";
 import { deriveStatus, fetchGithubData, parseGithubUrl } from "../tasks/github";
 
-export const items = new Hono<{ Bindings: Env }>();
+export const items = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,17 +76,8 @@ items.get("/", async (c) => {
 // POST /api/items — create a project (auth required)
 // ---------------------------------------------------------------------------
 
-items.post("/", async (c) => {
-  const agent = await getAgent(
-    c.req.header("Authorization") ?? null,
-    c.env.ROADMAP_KV
-  );
-  if (!agent) {
-    return c.json(
-      { error: "Not authenticated. Use header: Authorization: AIBTC {btcAddress}" },
-      401
-    );
-  }
+items.post("/", requireAuth, async (c) => {
+  const agent = c.get("agent")!;
 
   const body = await c.req.json<{
     title?: string;
@@ -179,17 +171,8 @@ interface PutBody {
   profileUrl?: string;
 }
 
-items.put("/", async (c) => {
-  const agent = await getAgent(
-    c.req.header("Authorization") ?? null,
-    c.env.ROADMAP_KV
-  );
-  if (!agent) {
-    return c.json(
-      { error: "Not authenticated. Use header: Authorization: AIBTC {btcAddress}" },
-      401
-    );
-  }
+items.put("/", requireAuth, async (c) => {
+  const agent = c.get("agent")!;
 
   const body = await c.req.json<PutBody>();
 
@@ -474,17 +457,8 @@ items.put("/", async (c) => {
 // DELETE /api/items — remove a project (auth required)
 // ---------------------------------------------------------------------------
 
-items.delete("/", async (c) => {
-  const agent = await getAgent(
-    c.req.header("Authorization") ?? null,
-    c.env.ROADMAP_KV
-  );
-  if (!agent) {
-    return c.json(
-      { error: "Not authenticated. Use header: Authorization: AIBTC {btcAddress}" },
-      401
-    );
-  }
+items.delete("/", requireAuth, async (c) => {
+  const agent = c.get("agent")!;
 
   const body = await c.req.json<{ id?: string }>();
   if (!body.id) {

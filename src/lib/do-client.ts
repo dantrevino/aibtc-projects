@@ -1,5 +1,6 @@
 import type {
   Env,
+  Agent,
   ProjectItem,
   ActivityEvent,
   DOResult,
@@ -162,6 +163,37 @@ export async function recordEvent(
     body: JSON.stringify(event),
   });
   return result.data ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Agent cache
+// ---------------------------------------------------------------------------
+
+/** Get cached agent from DO (returns null if not cached or expired) */
+export async function getAgentCache(
+  env: Env,
+  address: string
+): Promise<Agent | null> {
+  const stub = getStub(env);
+  const result = await doFetch<Agent | null>(
+    stub,
+    `/agent-cache/${encodeURIComponent(address)}`
+  );
+  return result.data ?? null;
+}
+
+/** Cache a verified agent in DO storage */
+export async function putAgentCache(
+  env: Env,
+  address: string,
+  agent: Agent
+): Promise<void> {
+  const stub = getStub(env);
+  await doFetch(stub, `/agent-cache/${encodeURIComponent(address)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(agent),
+  });
 }
 
 // ---------------------------------------------------------------------------

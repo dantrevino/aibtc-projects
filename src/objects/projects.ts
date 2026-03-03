@@ -2,6 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import type {
   Env,
   ProjectItem,
+  Agent,
+  AgentCacheEntry,
   ActivityEvent,
   AgentRef,
   AlarmTask,
@@ -154,6 +156,16 @@ export class ProjectsDurableObject extends DurableObject<Env> {
           STORAGE_KEYS.messageArchive,
           request
         );
+      }
+
+      // Agent cache
+      if (path.startsWith("/agent-cache/") && method === "GET") {
+        const address = decodeURIComponent(path.slice("/agent-cache/".length));
+        return this.handleGetAgentCache(address);
+      }
+      if (path.startsWith("/agent-cache/") && method === "PUT") {
+        const address = decodeURIComponent(path.slice("/agent-cache/".length));
+        return this.handlePutAgentCache(address, request);
       }
 
       // Alarm management
@@ -574,6 +586,49 @@ export class ProjectsDurableObject extends DurableObject<Env> {
       ok: true,
       data: result,
     } satisfies DOResult<GitHubMapState>);
+  }
+
+  // -------------------------------------------------------------------------
+  // Agent cache (DO-backed, replaces KV agent cache)
+  // -------------------------------------------------------------------------
+
+  private async handleGetAgentCache(address: string): Promise<Response> {
+    const key = STORAGE_KEYS.agentCachePrefix + address;
+    const entry = await this.ctx.storage.get<AgentCacheEntry>(key);
+
+    if (!entry) {
+      return Response.json({ ok: true, data: null } satisfies DOResult<null>);
+    }
+
+    // Check TTL — 1 hour
+    const age = Date.now() - new Date(entry.cachedAt).getTime();
+    if (age > 3600_000) {
+      // Expired — delete and return null
+      await this.ctx.storage.delete(key);
+      return Response.json({ ok: true, data: null } satisfies DOResult<null>);
+    }
+
+    return Response.json({
+      ok: true,
+      data: entry.agent,
+    } satisfies DOResult<Agent>);
+  }
+
+  private async handlePutAgentCache(
+    address: string,
+    request: Request
+  ): Promise<Response> {
+    const agent = (await request.json()) as Agent;
+    const key = STORAGE_KEYS.agentCachePrefix + address;
+    const entry: AgentCacheEntry = {
+      agent,
+      cachedAt: new Date().toISOString(),
+    };
+    await this.ctx.storage.put(key, entry);
+    return Response.json({
+      ok: true,
+      data: agent,
+    } satisfies DOResult<Agent>);
   }
 
   // -------------------------------------------------------------------------

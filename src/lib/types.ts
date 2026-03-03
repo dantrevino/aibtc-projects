@@ -17,6 +17,17 @@ export interface Agent {
   agentId?: string | null;
 }
 
+/** Cached agent entry with TTL tracking */
+export interface AgentCacheEntry {
+  agent: Agent;
+  cachedAt: string;
+}
+
+/** Hono context variables set by auth middleware */
+export interface AuthVariables {
+  agent: Agent | null;
+}
+
 /** A project item in the roadmap */
 export interface ProjectItem {
   id: string;
@@ -240,4 +251,6 @@ export const STORAGE_KEYS = {
   githubMap: "scan:github-map",
   /** Message archive */
   messageArchive: "scan:messages",
+  /** Agent cache: agent-cache:{btcAddress} */
+  agentCachePrefix: "agent-cache:",
 } as const;
